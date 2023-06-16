@@ -122,17 +122,48 @@ except FileNotFoundError:
 
     point_tf = init_point_in_korea() #초기 - 3.7시간 소요
     
-vs30_korea_gdf = vs30_gdf[point_tf]
+#vs30_korea_gdf = vs30_gdf[point_tf] #쓸모 없어짐 ㅋㅋㅋ
+
+vs30_mapping_gdf = gpd.sjoin(vs30_gdf, sigungu_gdf) #각 점에 행정단위 매칭
+
+for i in range(len(sigungu_gdf)): #시군구별 평균 구하기
+    vs30_avg = vs30_mapping_gdf[sigungu_gdf['SIG_CD'][i] == vs30_mapping_gdf['SIG_CD']]['Vs30'].mean()
+
+    sigungu_gdf.loc[i,"vs30_avg"] = vs30_avg
+    
+
+#for i in range(len(sigungu_gdf)): #시군구 별로 매치
+#    minx, miny, maxx, maxy = sigungu_gdf["geometry"][i].bounds
+
+#    mask = vs30_korea_gdf.query(f'geometry.x >= {minx} & geometry.x <= {maxx} & geometry.y >= {miny} & geometry.y <= {maxy}').index
+    #해당 구의 최대 범위 내에 있는 점만 뽑기
+    
+    
+#    for m in mask: #내부 점 비교
+#        try:
+#            if (sigungu_gdf.loc[i,'geometry']).contains(vs30_korea_gdf.loc[m, 'geometry']): #
+#                vs30_korea_gdf.loc[m, 'Top_city'] = sigungu_gdf.loc[i,'CTP_KOR_NM']
+#                vs30_korea_gdf.loc[m, 'city'] = sigungu_gdf.loc[i,'SIG_KOR_NM']
+
+#                print(m)
+#        except:
+#            print(m, "Error 발생")
+#            continue
+
+#    print(i, "- 완료")
 
 
 
 #r = gpd.overlay(vs30_gdf, p, how='intersection')
 
 fig, ax = plt.subplots(1, 1, figsize=(5, 5))
-sido_gdf.plot(ax=ax, color='lightgray', edgecolor='white')
-#sigungu_gdf.plot(ax=ax, color='lightgray', edgecolor='white')
+#sido_gdf.plot(ax=ax, color='lightgray', edgecolor='white')
+sigungu_gdf.plot(ax=ax, color='lightgray', edgecolor='white')
 #vs30_korea_gdf.plot(ax=ax, color='green')
 
-sigungu_gdf['geometry'].centroid.plot(ax=ax, color='red')
+#vs30_korea_gdf.query('geometry.x > 128 & geometry.x < 129 & geometry.y > 37 & geometry.y < 38').plot(ax=ax, color='green')
+
+#gpd.sjoin(vs30_korea_gdf, sigungu_gdf).plot(ax=ax, color='red')
+#sigungu_gdf['geometry'].centroid.plot(ax=ax, color='red')
 
 plt.show()
