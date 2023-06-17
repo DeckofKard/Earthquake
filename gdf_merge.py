@@ -19,3 +19,4 @@ Seismic_design_ratio = pd.read_csv("csv_file/Seismic_design_ratio.csv") #내진 
 
 sigungu_gdf = pd.concat([sigungu_gdf_vs30, sigungu_gdf_shelav["shel_av"]] , axis=1)
 sigungu_gdf = pd.concat([sigungu_gdf, Seismic_design_ratio["내진설계_비율"]] , axis=1)
+sigungu_gdf.head()
