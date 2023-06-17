@@ -133,7 +133,9 @@ for i in range(len(sigungu_gdf)): #시군구별 평균 구하기
     sigungu_gdf.loc[i,"vs30_avg"] = vs30_avg
     sigungu_gdf.loc[i,"vs30_low"] = vs30_low
     
-
+with open('merge_gdf/sigungu_gdf_vs30.pickle', 'wb') as f:
+        pickle.dump(sigungu_gdf, f)
+    
 #for i in range(len(sigungu_gdf)): #시군구 별로 매치
 #    minx, miny, maxx, maxy = sigungu_gdf["geometry"][i].bounds
 
