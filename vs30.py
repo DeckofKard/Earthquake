@@ -128,8 +128,10 @@ vs30_mapping_gdf = gpd.sjoin(vs30_gdf, sigungu_gdf) #각 점에 행정단위 매
 
 for i in range(len(sigungu_gdf)): #시군구별 평균 구하기
     vs30_avg = vs30_mapping_gdf[sigungu_gdf['SIG_CD'][i] == vs30_mapping_gdf['SIG_CD']]['Vs30'].mean()
+    vs30_low = vs30_mapping_gdf[sigungu_gdf['SIG_CD'][i] == vs30_mapping_gdf['SIG_CD']]['Vs30'].quantile(q=0.1)
 
     sigungu_gdf.loc[i,"vs30_avg"] = vs30_avg
+    sigungu_gdf.loc[i,"vs30_low"] = vs30_low
     
 
 #for i in range(len(sigungu_gdf)): #시군구 별로 매치
@@ -156,14 +158,80 @@ for i in range(len(sigungu_gdf)): #시군구별 평균 구하기
 
 #r = gpd.overlay(vs30_gdf, p, how='intersection')
 
-fig, ax = plt.subplots(1, 1, figsize=(5, 5))
+fig, ax = plt.subplots(1, 2, figsize=(5, 5))
 #sido_gdf.plot(ax=ax, color='lightgray', edgecolor='white')
-sigungu_gdf.plot(ax=ax, color='lightgray', edgecolor='white')
+#sigungu_gdf.plot(ax=ax, color='lightgray', edgecolor='white')
+
+#vs30 평균값, 최하 10%값
+sigungu_gdf.plot(column='vs30_avg', vmin=100, vmax=700,cmap='RdYlBu', linewidth=0.1, ax=ax[0], edgecolor='white', legend=True)
+sido_gdf.plot(ax=ax[0], color=None, facecolor='none', edgecolor='lightgray',linewidth=0.8,alpha=0.8)
+
+sigungu_gdf.plot(column='vs30_low', vmin=100, vmax=700,cmap='RdYlBu', linewidth=0.1, ax=ax[1], edgecolor='white', legend=True)
+sido_gdf.plot(ax=ax[1], color=None, facecolor='none', edgecolor='lightgray',linewidth=0.8,alpha=0.8)
 #vs30_korea_gdf.plot(ax=ax, color='green')
 
 #vs30_korea_gdf.query('geometry.x > 128 & geometry.x < 129 & geometry.y > 37 & geometry.y < 38').plot(ax=ax, color='green')
 
 #gpd.sjoin(vs30_korea_gdf, sigungu_gdf).plot(ax=ax, color='red')
-#sigungu_gdf['geometry'].centroid.plot(ax=ax, color='red')
+#sigungu_gdf.plot(ax=ax, color='lightgray', edgecolor='white')
 
 plt.show()
+
+#fig.savefig("vs30.png", dpi = 500)
+
+fig, ax = plt.subplots(1, 1, figsize=(10, 10))
+
+sido_gdf.plot(ax=ax, color=None, facecolor='none', edgecolor='white',linewidth=0.8)
+
+sigungu_gdf.plot(ax=ax, color='lightgray', edgecolor='white', linewidth=0.3)
+
+vs30_mapping_gdf.query("CTP_KOR_NM == '서울특별시'").plot(column='Vs30',ax=ax, vmin=100, vmax=700,cmap='RdYlBu') #Vs30<300
+plt.show()
+
+#fig.savefig("vs30_point.png", dpi = 500)
+
+xlength = 7.5/901
+ylength = 5.5/661
+
+vs30_range_gdf = vs30_mapping_gdf.query("CTP_KOR_NM == '서울특별시' | CTP_KOR_NM == '경기도' | CTP_KOR_NM == '인천광역시'")
+
+import folium
+import branca.colormap as cm
+colormap = cm.linear.RdYlBu_03.scale(100,700)#cm.colormap.LinearColormap(['red', 'blue'], vmin=100, vmax=700)
+
+def style_function(feature):
+    color = 'green'  # Example: Set a default color
+    #if 'property_name' in feature['properties']:
+        #property_value = feature['properties']['property_name']
+        # Define color based on the property value
+
+    property_value = vs30_range_gdf['Vs30'].iloc[int(feature['id'])]
+    color = colormap(property_value)
+    
+    return {
+        'fillColor': color,
+        'color': color,
+        'weight': 1,
+        'fillOpacity': 0.5,
+    }
+
+polygons = [shapely.geometry.Polygon([(x, y), (x+xlength, y), (x+xlength, y+ylength), (x, y+ylength)]) for x, y in zip(vs30_range_gdf["geometry"].x, vs30_range_gdf["geometry"].y)]
+grid_layer = gpd.GeoDataFrame(geometry=polygons, crs=from_epsg(4326))
+
+
+map_center = [37.7749, 128.4194]
+zoom_level = 10
+m = folium.Map(location=map_center, zoom_start=zoom_level)
+
+grid_geojson = grid_layer.to_json()
+folium.GeoJson(grid_geojson, style_function=style_function).add_to(m)
+
+folium.Choropleth(
+    geo_data=sido_gdf,
+    fill_color='gray',
+    fill_opacity=0,
+    line_opacity=0.5
+    ).add_to(m)
+
+
+m.save('./test.html')
