@@ -61,11 +61,11 @@ def init_sigungu_in_sido():
 
     n = 0
     sigun_top_list = []
+    sigun_point_list = []    
     for sigun_polygon in sigungu_gdf['geometry']:
         n+=1
         find_sido = False
         minx, miny, maxx, maxy = sigun_polygon.bounds
-        
         
         while 1: #해당 시군구 내 대표 좌표 생성
             try:
@@ -79,6 +79,8 @@ def init_sigungu_in_sido():
                     break
             except:
                 print("에러")
+
+        sigun_point_list.append(sigun_point)        
             
         for i in range(len(sido_gdf)):
             try:
@@ -105,10 +107,21 @@ def init_sigungu_in_sido():
     with open('./json_file/SIGUNGU_2302_add.json','w',encoding="utf-8") as f:
         json.dump(json_data, f, ensure_ascii=False)
 
+    fig, ax = plt.subplots(1, 1, figsize=(10, 10))
+
+    sigungu_gdf.plot(ax=ax, color='lightgray', edgecolor='white', linewidth=0.3)
+
+    gpd.GeoDataFrame({'geometry':sigun_point_list}, crs=from_epsg(4326)).plot(ax=ax, color ='red')
+    
+    plt.show()
+
 
 vs30_gdf = get_vs30_gdf()
 sigungu_gdf = get_sigungu_gdf() #250개
 sido_gdf = get_sido_gdf() #17개
+
+#init_sigungu_in_sido()
+
 
 #p = sido_gdf['geometry'].unary_union
 
@@ -120,9 +133,9 @@ try:
 except FileNotFoundError:
     korea_polygon = gpd.GeoSeries(sido_gdf.buffer(0.001).unary_union, crs=from_epsg(4326)) #위경도 0.001로 주위 보간
 
-    point_tf = init_point_in_korea() #초기 - 3.7시간 소요
+    point_tf = init_point_in_korea() #초기
     
-#vs30_korea_gdf = vs30_gdf[point_tf] #쓸모 없어짐 ㅋㅋㅋ
+#vs30_korea_gdf = vs30_gdf[point_tf] #
 
 vs30_mapping_gdf = gpd.sjoin(vs30_gdf, sigungu_gdf) #각 점에 행정단위 매칭
 
@@ -157,19 +170,20 @@ with open('merge_gdf/sigungu_gdf_vs30.pickle', 'wb') as f:
 #    print(i, "- 완료")
 
 
-
+#vs30 평균값, 최하 10%값 시각화
 #r = gpd.overlay(vs30_gdf, p, how='intersection')
+plt.rcParams['font.family'] = "NanumSquare"
 
 fig, ax = plt.subplots(1, 2, figsize=(5, 5))
 #sido_gdf.plot(ax=ax, color='lightgray', edgecolor='white')
 #sigungu_gdf.plot(ax=ax, color='lightgray', edgecolor='white')
-
-#vs30 평균값, 최하 10%값
 sigungu_gdf.plot(column='vs30_avg', vmin=100, vmax=700,cmap='RdYlBu', linewidth=0.1, ax=ax[0], edgecolor='white', legend=True)
 sido_gdf.plot(ax=ax[0], color=None, facecolor='none', edgecolor='lightgray',linewidth=0.8,alpha=0.8)
+ax[0].set_title("지반 평균 값", fontdict = {'fontsize' : 25, 'fontweight':"bold"}, pad=10)
 
 sigungu_gdf.plot(column='vs30_low', vmin=100, vmax=700,cmap='RdYlBu', linewidth=0.1, ax=ax[1], edgecolor='white', legend=True)
 sido_gdf.plot(ax=ax[1], color=None, facecolor='none', edgecolor='lightgray',linewidth=0.8,alpha=0.8)
+ax[1].set_title("지반 하위 10% 값", fontdict = {'fontsize' : 25, 'fontweight':"bold"}, pad=10)
 #vs30_korea_gdf.plot(ax=ax, color='green')
 
 #vs30_korea_gdf.query('geometry.x > 128 & geometry.x < 129 & geometry.y > 37 & geometry.y < 38').plot(ax=ax, color='green')
@@ -178,13 +192,12 @@ sido_gdf.plot(ax=ax[1], color=None, facecolor='none', edgecolor='lightgray',line
 #sigungu_gdf.plot(ax=ax, color='lightgray', edgecolor='white')
 
 plt.show()
-
 #fig.savefig("vs30.png", dpi = 500)
 
+
+#서울특별시 점만 시각화
 fig, ax = plt.subplots(1, 1, figsize=(10, 10))
-
 sido_gdf.plot(ax=ax, color=None, facecolor='none', edgecolor='white',linewidth=0.8)
-
 sigungu_gdf.plot(ax=ax, color='lightgray', edgecolor='white', linewidth=0.3)
 
 vs30_mapping_gdf.query("CTP_KOR_NM == '서울특별시'").plot(column='Vs30',ax=ax, vmin=100, vmax=700,cmap='RdYlBu') #Vs30<300
@@ -195,17 +208,14 @@ plt.show()
 xlength = 7.5/901
 ylength = 5.5/661
 
-vs30_range_gdf = vs30_mapping_gdf.query("CTP_KOR_NM == '서울특별시' | CTP_KOR_NM == '경기도' | CTP_KOR_NM == '인천광역시'")
+vs30_range_gdf = vs30_mapping_gdf#.query("CTP_KOR_NM == '서울특별시' | CTP_KOR_NM == '경기도' | CTP_KOR_NM == '인천광역시'")
 
 import folium
 import branca.colormap as cm
 colormap = cm.linear.RdYlBu_03.scale(100,700)#cm.colormap.LinearColormap(['red', 'blue'], vmin=100, vmax=700)
 
 def style_function(feature):
-    color = 'green'  # Example: Set a default color
-    #if 'property_name' in feature['properties']:
-        #property_value = feature['properties']['property_name']
-        # Define color based on the property value
+    color = 'green'
 
     property_value = vs30_range_gdf['Vs30'].iloc[int(feature['id'])]
     color = colormap(property_value)
@@ -235,5 +245,23 @@ folium.Choropleth(
     line_opacity=0.5
     ).add_to(m)
 
+pohang= (36.11, 129.37)
+gyeungju = (35.7610, 129.1878)
 
-m.save('./test.html')
+folium.Circle(location = [pohang[0], pohang[1]],
+           radius = 3000,
+           popup="액상화 관측 구역",
+           color = "red"
+    ).add_to(m)
+
+folium.Marker(location = [pohang[0], pohang[1]],
+           popup=folium.Popup("포항지진 진원지", min_width=90, max_width=200),
+           icon=folium.Icon(color='red',icon='star')
+        ).add_to(m)
+
+folium.Marker(location = [gyeungju[0],gyeungju[1]],
+           popup=folium.Popup("경주지진 진원지", min_width=90, max_width=200),
+           icon=folium.Icon(color='red',icon='star')
+        ).add_to(m)
+
+m.save('./vs30_folium.html')
