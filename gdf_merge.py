@@ -21,6 +21,7 @@ Seismic_design_ratio_df = pd.read_csv("csv_file/Seismic_design_ratio.csv") #내�
 
 #대피소 수용율(인구수 / 내진 비율 계산)
 sigungu_gdf = pd.concat([sigungu_gdf_vs30, sigungu_gdf_shelav["shel_av"]] , axis=1)
+
 sigungu_gdf = pd.merge(sigungu_gdf, population_df[["code", "2023년05월_총인구수"]] , left_on="SIG_CD", right_on = "code", how="left").drop(["code"],axis=1)
 for i in range(len(sigungu_gdf)):
     sigungu_gdf.loc[i,"2023년05월_총인구수"] = int(sigungu_gdf["2023년05월_총인구수"][i].replace(",",''))
